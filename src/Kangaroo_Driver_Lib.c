@@ -151,10 +151,21 @@ void start_channel(mraa_uart_context uart, uint8_t address, uint8_t channel_name
     // data for start command
     data[0] = channel_name;         // channel name, usually "1" or "2"
     data[1] = 0;                    // flags
+    struct velocity_Data test;
 
-    write_kangaroo_command(address, CMD_START, data, 2, buffer);
+    test.error = -1;
 
-    mraa_uart_write(uart, buffer, 7);
+    do {
+
+    	write_kangaroo_command(address, CMD_START, data, 2, buffer);
+
+    	mraa_uart_write(uart, buffer, 7);
+
+    	test = readMoveSpeed(uart, address, channel_name);
+
+    	//Clear the Read buffer from the Kangaroos
+    	clearRead(uart);
+    } while(test.error != 0);
 
     fprintf(stdout, "Channel Initialized!\n");
 }
@@ -239,13 +250,13 @@ struct velocity_Data readMoveSpeed(mraa_uart_context uart, uint8_t address, uint
 
 	//While data is not available, do nothing
 	while(!mraa_uart_data_available(uart, 0)){
-		fprintf(stdout, "DATA NOT AVAILABLE");
+		//fprintf(stdout, "DATA NOT AVAILABLE");
 	}
 
 	mraa_uart_read(uart, dataBuffer, 13);
 	fprintf(stdout,"\nNEW CMD:");
 	for(i = 0; i < 13; i++){
-		fprintf(stdout," %d ", dataBuffer[i]);
+		//fprintf(stdout," %d ", dataBuffer[i]);
 	}
 
 	//Decode the data
@@ -277,6 +288,6 @@ void clearRead(mraa_uart_context uart){
 	while(mraa_uart_data_available(uart, 0)){
 		uint8_t clearBuffer[1];
 		mraa_uart_read(uart, clearBuffer, 1);
-		fprintf(stdout, "Cleared one byte");
+		fprintf(stdout, "Cleared one byte\n");
 	}
 }
