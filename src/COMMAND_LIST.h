@@ -27,4 +27,7 @@
 
 #define SYS_CMD_PWRDOWN       0
 
+#define MUX_COMPUTER			1
+#define MUX_KANGAROO			0
+
 #endif /* COMMAND_LIST_H_ */

@@ -39,6 +39,8 @@
     struct velocity_Data readMoveSpeed(mraa_uart_context uart, uint8_t address, uint8_t channel_name);
 
     void clearRead(mraa_uart_context uart);
+
+    void readMotors(mraa_uart_context uart, int32_t* buf);
 #endif /* KANGAROO_DRIVER_LIB_H_ */
 
 

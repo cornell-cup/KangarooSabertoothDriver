@@ -13,6 +13,9 @@
 #include "mraa.h"
 #include <unistd.h>
 
+#define MAX_SPEED		4000
+#define DEADBAND		0.01
+
 
 /* This function should be called at the initialization of the setup.
  * This configures the Intel Edison to communicate with sabertooth through uart (8N1, 9600 baud).
@@ -249,15 +252,12 @@ struct velocity_Data readMoveSpeed(mraa_uart_context uart, uint8_t address, uint
 	}
 
 	//While data is not available, do nothing
-	while(!mraa_uart_data_available(uart, 0)){
-		//fprintf(stdout, "DATA NOT AVAILABLE");
-	}
+	//while(!mraa_uart_data_available(uart, 0)){
+		//fprintf(stdout, "DATA NOT AVAILABLE\n");
+	//}
 
 	mraa_uart_read(uart, dataBuffer, 13);
 	fprintf(stdout,"\nNEW CMD:");
-	for(i = 0; i < 13; i++){
-		//fprintf(stdout," %d ", dataBuffer[i]);
-	}
 
 	//Decode the data
 	struct velocity_Data returnData;
@@ -291,3 +291,92 @@ void clearRead(mraa_uart_context uart){
 		fprintf(stdout, "Cleared one byte\n");
 	}
 }
+
+/**********************************************************************************************
+ * Function:        readAndSetMotors
+ * Input:           buffer: Pointer to the buffer of speeds Size should be 4. (LF RF LB RB)
+ * 					uart: The uart context to be read.
+ * 					uint8_t adrFront: address of front motors
+ * 					uint8_t adrBack: address of rear motors
+ * 					uint8_t chLeft: channel of the left motors
+ * 					uint8_t chRight: channel of the right motors
+ * Output:
+ * Notes:			Reads motor speeds from the motherboard. Formatted according to ModBot base station code
+ * This function assumes that there is
+ *********************************************************************************************/
+void readMotors(mraa_uart_context uart, int32_t* buf){
+	char firstByte[1] = {0}; //First byte of the array.
+	char directions[1] = {0};
+	uint8_t speeds[4] = {0};
+	char endChar[1] = {0};
+
+	//int32_t kangarooSpeeds[4] = {0};
+
+	float speedFactor = MAX_SPEED / 255;
+
+	mraa_uart_read(uart, firstByte, 1);
+
+	//If the first byte is M, then do the processing
+	if(firstByte[0] == 'M'){
+		mraa_uart_read(uart, directions, 1);
+		mraa_uart_read(uart, speeds, 4);
+		mraa_uart_read(uart, endChar, 1);
+
+		if(endChar[0] != '#'){
+			fprintf(stdout,"Bad Ending Char");
+			return;
+		}
+
+		int32_t LF = speeds[0] * speedFactor;
+		int32_t RF = speeds[1] * speedFactor;
+		int32_t LB = speeds[2] * speedFactor;
+		int32_t RB = speeds[3] * speedFactor;
+		fprintf(stdout, "INCOMING SPEEDS: %d %d %d %d\n",speeds[0], speeds[1], speeds[2], speeds[3]);
+
+		char directionChar = directions[0];
+
+		char LFDir = (0x08 & directionChar);
+		if(LFDir == 0x00){
+			LF = LF * -1;
+		}
+		char RFDir = (0x04 & directionChar);
+		if(RFDir == 0x00){
+			RF = RF * -1;
+		}
+		char LBDir = (0x02 & directionChar);
+		if(LBDir == 0x00){
+			LB = LB * -1;
+		}
+		char RBDir = (0x01 & directionChar);
+		if(RBDir == 0x00){
+			RB = RB * -1;
+		}
+
+		//If the speeds are within 1% of 0 - MAX_SPEED, then disregard and set equal to 0.
+		int32_t deadband = MAX_SPEED * DEADBAND;
+		if(abs(LF) < deadband ){
+			LF = 0;
+		}
+		if(abs(RF) < deadband){
+			RF = 0;
+		}
+		if(abs(LB) < deadband){
+			LB = 0;
+		}
+		if(abs(RB) < deadband){
+			RB = 0;
+		}
+		//Write the speeds
+		buf[0] = LF;
+		buf[1] = RF;
+		buf[2] = LB;
+		buf[3] = RB;
+	}
+	else{
+		//Garbage
+		clearRead(uart);
+		fprintf(stdout,"CLEARED GARB");
+	}
+	return;
+}
+
