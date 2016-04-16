@@ -9,14 +9,15 @@
 #include "Kangaroo_Driver_Lib.h"
 #include "mraa.h"
 #include <unistd.h>
+#include <time.h>       //for time tracking
+#include "uart2.h"
+
+void delay(int milliseconds);
 
 int main()
 {
-    //Variable pinA selects which device the Edison
-    //is communicating with. It represents pin 13
-    //pinA = 0 - Edison communicates with Kangaroos
-    //pinA = 1 - Edison communicates with computer/FPGA
-    mraa_gpio_context pinRead = NULL;
+
+    /*mraa_gpio_context pinRead = NULL;
     mraa_gpio_context pinWrite = NULL;
 
     //initialize pin
@@ -67,7 +68,7 @@ int main()
 
     int32_t ui[4];
 
-    while(1){
+    while(0){
 
         //Clear the uart
         //clearRead(uart0);
@@ -88,7 +89,7 @@ int main()
         fprintf(stdout, "Write speeds %d %d %d %d:", speeds[0], speeds[1], speeds[2], speeds[3]);
 
         //Switch to Kangaroo Communication
-        //mraa_gpio_write(pinRead, );
+        //mraa_gpio_write(pinRead, MUX_KANGAROO);
 
         //Set speeds on motors
         writeMoveSpeed(uart0, address1, channelName1_1, speeds[0]);
@@ -96,7 +97,7 @@ int main()
         writeMoveSpeed(uart0, address2, channelName2_1, speeds[2]);
         writeMoveSpeed(uart0, address2, channelName2_2, speeds[3]);
 
-        //Clear the Read buffer from the Kangaroos
+        //Clear the Read buffer
         //clearRead(uart0);
 
         //Read speeds
@@ -106,8 +107,102 @@ int main()
         //readMoveSpeed(uart0, address2, channelName2_2);
     }
 
+    //Code to measure time to set and read speeds on motors
+
+    int32_t speeds[4] = {4000,-4000,-4000,4000};
+    clock_t timeWrite;
+    timeWrite = clock();
+    writeMoveSpeed(uart0, address1, channelName1_1, speeds[0]);
+    writeMoveSpeed(uart0, address1, channelName1_2, speeds[1]);
+    writeMoveSpeed(uart0, address2, channelName2_1, speeds[2]);
+    writeMoveSpeed(uart0, address2, channelName2_2, speeds[3]);
+    timeWrite = clock() - timeWrite;
+    double time_taken_write = ((double)timeWrite)/CLOCKS_PER_SEC; // in seconds
+
+    printf("Took %f seconds to set 4 speeds \n", time_taken_write);
+    // Took 0.000152 seconds to set 4 speeds
+    // Took 0.000099 seconds to set 4 speeds
+    // Took 0.000095 seconds to set 4 speeds
+    // Took 0.000157 seconds to set 4 speeds
+
+    delay(250);
+
+    clock_t timeRead;
+    timeRead = clock();
+    readMoveSpeed(uart0, address1, channelName1_1);
+    readMoveSpeed(uart0, address1, channelName1_2);
+    readMoveSpeed(uart0, address2, channelName2_1);
+    readMoveSpeed(uart0, address2, channelName2_2);
+    timeRead = clock() - timeRead;
+    double time_taken_read = ((double)timeRead)/CLOCKS_PER_SEC; // in seconds
+
+    printf("Took %f seconds to read 4 speeds \n", time_taken_read);
+    // Took 0.001289 seconds to read 4 speeds
+    // Took 0.001397 seconds to read 4 speeds
+    // Took 0.001263 seconds to read 4 speeds
+    // Took 0.001342 seconds to read 4 speeds
+
     //Destroy the uart context
-    uart_destroy(uart0);
+    uart_destroy(uart0);*/
+
+    // Code to test uart2
+
+    mraa_uart_context uart1;
+
+    if (detach_console()) {
+        fprintf(stdout, "Failed to detach system console.\n");
+        fflush(stdout);
+        return EXIT_FAILURE;
+    }
+
+    uart1 = mraa_uart_init_raw("/dev/ttyMFD2");
+    if (uart1 == NULL) {
+        fprintf(stdout, "UART2 failed to setup\n");
+        return EXIT_FAILURE;
+    }
+    else{
+        printf("UART2 initialized\n");
+    }
+    mraa_uart_set_mode(uart1, 8,MRAA_UART_PARITY_NONE , 1);
+    mraa_uart_set_baudrate(uart1, 9600);
+
+    char buffer[] = "\nHello Mraa!\n";
+    mraa_uart_write(uart1, buffer, sizeof(buffer));
+
+    //clearRead(uart1);
+
+
+   // while(mraa_uart_data_available(uart1, 0) == 0){
+        //do nothing
+        printf("waiting for data\n");
+    //}
+
+    char stop = 0;
+    //while(!stop){
+        char read[4];
+        if(mraa_uart_data_available(uart1, 0) == 0){
+            printf("No Data\n");
+        }
+        else{
+            printf("DATA READ");
+            stop = 1;
+        }
+  //  }
+
+    reattach_console();
+    fprintf(stdout, "Console reattached.\n");
+
 
     return 0;
+}
+
+void delay(int milliseconds)
+{
+    long pause;
+    clock_t now,then;
+
+    pause = milliseconds*(CLOCKS_PER_SEC/1000);
+    now = then = clock();
+    while( (now-then) < pause )
+        now = clock();
 }

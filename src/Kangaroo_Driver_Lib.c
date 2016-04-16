@@ -13,12 +13,9 @@
 #include "mraa.h"
 #include <unistd.h>
 
-#define MAX_SPEED		4000
-#define DEADBAND		0.01
-
 
 /* This function should be called at the initialization of the setup.
- * This configures the Intel Edison to communicate with sabertooth through uart (8N1, 9600 baud).
+ * This configures the Intel Edison to communicate with sabertooth through uart (8N1, BAUDRATE baud).
  * Returns the uart context that is setup.
  */
 mraa_uart_context uart_setup() {
@@ -32,7 +29,7 @@ mraa_uart_context uart_setup() {
     	printf("UART initialized\n");
     }
     mraa_uart_set_mode(uart0, 8,MRAA_UART_PARITY_NONE , 1);
-  	mraa_uart_set_baudrate(uart0, 9600);
+  	mraa_uart_set_baudrate(uart0, BAUDRATE);
 
   	//wait for 3 seconds to allow time for things to settle down
   	sleep(3);
@@ -156,7 +153,7 @@ void start_channel(mraa_uart_context uart, uint8_t address, uint8_t channel_name
     data[1] = 0;                    // flags
     struct velocity_Data test;
 
-    test.error = -1;
+    test.readFlag = -1;
 
     do {
 
@@ -168,7 +165,7 @@ void start_channel(mraa_uart_context uart, uint8_t address, uint8_t channel_name
 
     	//Clear the Read buffer from the Kangaroos
     	clearRead(uart);
-    } while(test.error != 0);
+    } while(test.readFlag != 0);
 
     fprintf(stdout, "Channel Initialized!\n");
 }
@@ -245,16 +242,7 @@ struct velocity_Data readMoveSpeed(mraa_uart_context uart, uint8_t address, uint
 	write_kangaroo_command(address, CMD_GET, data, length, buffer);
 	mraa_uart_write(uart, buffer, length+5);
 	int maxLength = 13;
-	int i = 0;
 	uint8_t dataBuffer[maxLength]; //Maximum size of return data
-	for(i = 0; i < maxLength; i++){
-		dataBuffer[i] = -1;
-	}
-
-	//While data is not available, do nothing
-	//while(!mraa_uart_data_available(uart, 0)){
-		//fprintf(stdout, "DATA NOT AVAILABLE\n");
-	//}
 
 	mraa_uart_read(uart, dataBuffer, 13);
 	fprintf(stdout,"\nNEW CMD:");
@@ -263,16 +251,17 @@ struct velocity_Data readMoveSpeed(mraa_uart_context uart, uint8_t address, uint
 	struct velocity_Data returnData;
 	if((dataBuffer[0] == address) && (dataBuffer[1] == CMD_REPLY) && (dataBuffer[3] == channel_name)){
 		//The data buffer is correct
-		returnData.error = dataBuffer[4];
+		returnData.readFlag = dataBuffer[4];
 		uint8_t dataLength = dataBuffer[2];
 		int32_t velocity = unpackNumber(dataBuffer, dataLength);
-		returnData.velocity = velocity;
+		returnData.value = velocity;
 	}
 	else{
-		returnData.error = -1;
-		returnData.velocity = 0;
+		returnData.readFlag = -1;
+		returnData.value = 0;
+		fprintf(stdout, "Read speed unsuccessful!");
 	}
-	fprintf(stdout, "errorcode: %d, velocity: %d\n", returnData.error, returnData.velocity);
+	fprintf(stdout, "readFlag: %d, value: %d\n", returnData.readFlag, returnData.value);
 
 	return returnData;
 }

@@ -12,9 +12,22 @@
 #include "COMMAND_LIST.h"
 #include "mraa.h"
 
+#define MAX_SPEED		4000
+#define DEADBAND		0.01
+#define BAUDRATE		19200
+
 	struct velocity_Data {
-		char error;				// 0 if not error
-		int32_t velocity;		// motor velocity
+		// readFlag contains the flag of the reply command.
+		// readFlag = 0 indicates no error in the reading.
+		// readFlag = 1 indicates the reply is an error. The value in value
+		// will then represent the error code.
+		// readFlag = 2 indicates a pending state. If the controller is in motion,
+		// the motion is not finished. For an error, the error
+		// (such as "not homed") should self-clear.
+		char readFlag;
+		// if readFlag = 0 or 2, value contains the current speed.
+		// if readFlag = 1, value contains the error code.
+		int32_t value;
 	};
 
     mraa_uart_context uart_setup();
